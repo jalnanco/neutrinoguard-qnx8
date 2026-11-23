@@ -1,0 +1,43 @@
+# Hardened QNX OS 8.0 IFS Buildfile (aarch64le QEMU Target)
+[virtual=aarch64le,bios +compress] .bootstrap = {
+    startup-qemu-virt -U -v
+    PATH=/proc/boot:/bin:/usr/bin:/sbin LD_LIBRARY_PATH=/proc/boot:/lib:/usr/lib:/lib/dll procnto-smp-instr -v
+}
+
+[+script] .script = {
+    procmgr_symlink ../../proc/boot/libc.so.6 /usr/lib/ldqnx-64.so.2
+    secpolpush /proc/boot/secpol.bin
+    slogger2 -U 65536 &
+    waitfor /dev/slog2
+
+    on -T io_sock_t -u 99:99 io-sock -m phy -m pci -d devs-vtnet.so
+    waitfor /dev/socket
+    sysctl -w qnx.priority=22 net.isr.maxthreads=4 qnx.pnp.pci=0
+
+    on -T diag_logger_t -u 1003:1003 -p 22f /proc/boot/diag_logger &
+    waitfor /dev/name/local/diag_logger 2
+    on -T safety_monitor_t -u 1002:1002 -p 48f /proc/boot/safety_monitor &
+    waitfor /dev/adas_safety 2
+    on -T actuator_ctrl_t -u 1001:1001 -p 63f /proc/boot/actuator_ctrl &
+    waitfor /dev/name/local/actuator_ctrl 2
+
+    secpolpush -l
+}
+
+libc.so
+libsocket.so
+libslog2.so
+libsecpol.so
+devs-vtnet.so
+
+[data=copy]
+secpol.bin=./secpol.bin
+secpolpush
+slogger2
+io-sock
+sysctl
+on
+waitfor
+actuator_ctrl=./build/aarch64le/actuator_ctrl
+safety_monitor=./build/aarch64le/safety_monitor
+diag_logger=./build/aarch64le/diag_logger

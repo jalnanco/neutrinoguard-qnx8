@@ -1,0 +1,34 @@
+name: NeutrinoGuard 8 CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run 18 Unit & API Integration Tests
+        run: python3 -m unittest discover -s tests -v
+      - name: Verify Certified QNX 8.0 Target C11 Syntax & 100/100 Gate
+        run: |
+          make -C targets/qnx800/certified_adas_80 host-check
+          make -C targets/qnx800/certified_adas_80 clean
+          python3 -m neutrinoguard scan targets/qnx800/certified_adas_80 --fail-under 100
+      - name: Verify Python-to-Browser Engine Deterministic Parity
+        run: |
+          node -e '
+            global.window = {};
+            global.performance = { now: () => Date.now() };
+            require("./docs/presets.js");
+            require("./docs/engine.js");
+            for (const [k, p] of Object.entries(window.NEUTRINOGUARD_PRESETS)) {
+              const jsRep = window.NeutrinoEngine.analyzeWorkspace(p.files, "aarch64le", k);
+              if (jsRep.readiness_score !== p.baseline_report.readiness_score) process.exit(1);
+            }
+          '

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QNX OS 8.0 Interactive Codelab — Real-Time IPC, io-sock &amp; secpol Migration Guide</title>
+  <style>
+    :root {
+      --bg: #080c14;
+      --panel: #0f1626;
+      --border: #1e2d47;
+      --cyan: #06b6d4;
+      --emerald: #10b981;
+      --crimson: #f43f5e;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --mono: "JetBrains Mono", "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      line-height: 1.6;
+    }
+    .header {
+      background: #0d1525;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .header h1 { font-size: 17px; font-weight: 700; }
+    .header span { color: var(--cyan); font-family: var(--mono); font-size: 12px; }
+    .back-btn {
+      background: #17253d;
+      color: #fff;
+      text-decoration: none;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--cyan);
+      font-size: 12.5px;
+      font-weight: 600;
+    }
+    .layout {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 28px;
+      padding: 28px 32px 64px;
+    }
+    .sidebar {
+      position: sticky;
+      top: 84px;
+      align-self: start;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .sidebar h2 {
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .step-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 12.5px;
+      margin-bottom: 4px;
+    }
+    .step-link:hover { background: #16233b; color: #fff; }
+    .content { display: flex; flex-direction: column; gap: 24px; }
+    .step-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+    }
+    .step-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cyan);
+      background: rgba(6, 182, 212, 0.14);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      padding: 2px 9px;
+      border-radius: 99px;
+      margin-bottom: 8px;
+    }
+    .step-card h3 { font-size: 20px; margin-bottom: 10px; }
+    .step-card p { color: #cbd5e1; font-size: 14px; margin-bottom: 12px; }
+    pre {
+      background: #070b13;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.55;
+      overflow-x: auto;
+      margin-bottom: 12px;
+      color: #e2e8f0;
+    }
+    code {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      background: rgba(148, 163, 184, 0.14);
+      color: #bae6fd;
+      padding: 1px 5px;
+      border-radius: 4px;
+    }
+    pre code { background: none; padding: 0; color: inherit; }
+    .callout {
+      border-left: 3px solid var(--emerald);
+      background: rgba(16, 185, 129, 0.09);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #d1fae5;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>QNX OS 8.0 Hands-On Engineering Codelab</h1>
+      <span>Duration: 35 min · Target: QNX SDP 8.0 (aarch64le &amp; x86_64 QEMU) · Host: Linux / macOS / Windows</span>
+    </div>
+    <a class="back-btn" href="index.html">← Launch Live NeutrinoGuard 8 Workstation</a>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Codelab Modules</h2>
+      <a class="step-link" href="#step-1">1. 64-Bit SDP 8.0 Toolchain Setup</a>
+      <a class="step-link" href="#step-2">2. Migrating io-pkt to io-sock &amp; sysctl</a>
+      <a class="step-link" href="#step-3">3. Porting epoll/timerfd to Pulses</a>
+      <a class="step-link" href="#step-4">4. Eliminating MsgSend Deadlocks</a>
+      <a class="step-link" href="#step-5">5. Authoring secpol &amp; Dropping Root</a>
+      <a class="step-link" href="#step-6">6. Automated Gate &amp; QEMU Boot</a>
+    </aside>
+
+    <main class="content">
+      <section class="step-card" id="step-1">
+        <span class="step-badge">MODULE 01 · 5 MIN</span>
+        <h3>Configuring the Pure 64-Bit QNX SDP 8.0 Cross-Toolchain</h3>
+        <p>
+          QNX OS 8.0 features a redesigned next-generation microkernel exclusively targeting 64-bit multi-core architectures (<code>aarch64le</code> and <code>x86_64</code>). Binaries compiled for QNX SDP 7.1 or 32-bit profiles (<code>gcc_ntoarmv7le</code>, <code>gcc_ntox86</code>) cannot execute on QNX 8.0 and must be cleanly rebuilt with <code>qcc</code>.
+        </p>
+        <pre><code># 1. Activate your QNX Everywhere SDP 8.0 host environment
+source ~/qnx800/qnxsdp-env.sh
+
+# 2. Verify 64-bit target profiles (aarch64le &amp; x86_64) and enable Armv8 PAC/BTI hardening
+qcc -Vgcc_ntoaarch64le -std=c11 -Wall -Wextra -Werror \
+    -D_QNX_SOURCE -mbranch-protection=standard -fstack-protector-strong \
+    actuator_ctrl.c -o build/aarch64le/actuator_ctrl</code></pre>
+        <div class="callout">
+          <strong>Key Rule (QNX8-MIG-005 &amp; QNX8-PORT-005):</strong> Unlike Linux GCC, QNX 8.0 integrates POSIX threads and real-time timers directly inside <code>libc.so</code>—do not pass <code>-lpthread</code> or <code>-lrt</code>.
+        </div>
+      </section>
+
+      <section class="step-card" id="step-2">
+        <span class="step-badge">MODULE 02 · 6 MIN</span>
+        <h3>Migrating Networking from Legacy io-pkt to FreeBSD-Derived io-sock</h3>
+        <p>
+          QNX OS 8.0 removes the legacy <code>io-pkt</code> networking stack and obsolete SDP 7.1 <code>EXTRA_INCVPATH</code> socket overrides. All networking runs on <code>io-sock</code> with dynamically loaded <code>devs-*.so</code> driver modules and runtime <code>sysctl</code> tunables.
+        </p>
+        <pre><code># BEFORE (Legacy QNX 7.1 IFS .build — FAILS on QNX 8.0):
+io-pkt-v6-hc -d eqos
+io-sock -o timer_pulse_prio=22,netisr_threads=4,npnp_pci -m phy
+
+# AFTER (QNX OS 8.0 IFS .build):
+on -T io_sock_t -u 99:99 io-sock -m phy -m pci -d devs-vtnet.so
+waitfor /dev/socket
+sysctl -w qnx.priority=22 net.isr.maxthreads=4 qnx.pnp.pci=0</code></pre>
+      </section>
+
+      <section class="step-card" id="step-3">
+        <span class="step-badge">MODULE 03 · 7 MIN</span>
+        <h3>Replacing Linux epoll, timerfd &amp; Kernel ISRs with QNX Pulses &amp; ISTs</h3>
+        <p>
+          When porting Linux <code>PREEMPT_RT</code> robotics or automotive code, replace file-descriptor timers (<code>timerfd_create</code>) and <code>epoll_wait</code> with zero-copy 4-byte microkernel pulses (<code>SIGEV_PULSE</code>), and replace raw kernel <code>InterruptAttach()</code> handlers with user-space Interrupt Service Threads via <code>InterruptAttachEvent()</code>.
+        </p>
+        <pre><code>/* Deterministic QNX 8.0 Monotonic Pulse Timer + User-Space IST */
+struct sigevent intr_ev, tick_ev;
+SIGEV_INTR_INIT(&amp;intr_ev);
+int intr_id = InterruptAttachEvent(42, &amp;intr_ev, _NTO_INTR_FLAGS_TRK_MSK);
+
+SIGEV_PULSE_INIT(&amp;tick_ev, self_coid, SIGEV_PULSE_PRIO_INHERIT, PULSE_CONTROL_TICK, 0);
+timer_t tid;
+TimerCreate(CLOCK_MONOTONIC, &amp;tick_ev, &amp;tid);</code></pre>
+      </section>
+
+      <section class="step-card" id="step-4">
+        <span class="step-badge">MODULE 04 · 7 MIN</span>
+        <h3>Breaking Synchronous MsgSend Deadlock Cycles &amp; Priority Inversion</h3>
+        <p>
+          Because QNX <code>MsgSend()</code> blocks the caller until <code>MsgReply()</code>, any multi-process cycle (<code>actuator_ctrl → safety_monitor → diag_logger → actuator_ctrl</code>) causes a permanent <code>SEND-BLOCKED</code> deadlock. Equally critical, passing <code>_NTO_CHF_FIXED_PRIORITY</code> to <code>ChannelCreate()</code> disables microkernel priority inheritance.
+        </p>
+        <pre><code>/* 1. Preserve automatic priority inheritance + handle client disconnects cleanly */
+int chid = ChannelCreate(_NTO_CHF_DISCONNECT | _NTO_CHF_UNBLOCK);
+
+/* 2. Store 64-bit receive handles in rcvid_t (not narrow 32-bit int) */
+rcvid_t rcvid = MsgReceive(chid, &amp;cmd, sizeof(cmd), NULL);
+
+/* 3. Break cycles by emitting non-blocking pulses to lower-priority loggers */
+MsgSendPulse(diag_coid, SIGEV_PULSE_PRIO_INHERIT, PULSE_DIAG_AUDIT, cmd.sequence_id);</code></pre>
+      </section>
+
+      <section class="step-card" id="step-5">
+        <span class="step-badge">MODULE 05 · 5 MIN</span>
+        <h3>Enforcing Mandatory Access Control with secpol &amp; Locked Abilities</h3>
+        <p>
+          QNX OS 8.0 pairs process-level <code>procmgr_ability()</code> locking (replacing discontinued flags like <code>PROCMGR_AID_MEM_GLOBAL</code> and blanket <code>_NTO_TCTL_IO</code>) with system-wide <code>secpol</code> policies compiled via <code>secpolcompile</code>.
+        </p>
+        <pre><code>/* Grant &amp; lock narrow I/O ability for non-root execution, then drop UID 0 */
+procmgr_ability(
+    0,
+    PROCMGR_ADN_NONROOT | PROCMGR_AOP_ALLOW | PROCMGR_AID_IO,
+    PROCMGR_ADN_NONROOT | PROCMGR_AOP_LOCK  | PROCMGR_AID_IO,
+    PROCMGR_AID_EOL
+);
+setresuid(1001, 1001, 1001);
+ThreadCtl(_NTO_TCTL_IO_LEVEL, (void *)_NTO_IO_LEVEL_1);</code></pre>
+      </section>
+
+      <section class="step-card" id="step-6">
+        <span class="step-badge">MODULE 06 · 5 MIN</span>
+        <h3>Automated Verification &amp; IFS Image Synthesis with NeutrinoGuard 8</h3>
+        <p>
+          Before booting on QEMU or Raspberry Pi 5 hardware, run <code>qnx8-guard</code> on your Linux, macOS, or Windows host to verify <code>100/100</code> readiness, export SARIF 2.1.0 for CI, and auto-generate <code>secpol.txt</code> and <code>qnx800-qemu-aarch64le.build</code>.
+        </p>
+        <pre><code># Audit legacy QNX 7.1 ECU (detects 24 issues, 1 MsgSend deadlock cycle, 1 prio-inversion hazard)
+python3 -m neutrinoguard scan targets/qnx800/legacy_adas_71
+
+# Verify remediated QNX 8.0 target (100/100 READY, 0 findings) &amp; synthesize QEMU artifacts
+python3 -m neutrinoguard scan targets/qnx800/certified_adas_80 --fail-under 100
+python3 -m neutrinoguard synthesize targets/qnx800/certified_adas_80 --out-dir ./out_qnx8 --arch aarch64le
+
+# Compile secpol &amp; boot IFS image on QEMU (with QNX SDP 8.0 active)
+secpolcompile -o secpol.bin ./out_qnx8/secpol.txt
+mkifs ./out_qnx8/qnx800-qemu-aarch64le.build ifs-qnx800.bin
+qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1G -nographic -kernel ifs-qnx800.bin</code></pre>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neutrinoguard-qnx8"
+version = "1.0.0"
+description = "Host-based static analyzer, QNX 7.1 / Linux POSIX to QNX OS 8.0 migration engine, microkernel IPC deadlock & priority-inversion verifier, and secpol/IFS synthesizer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+  {name = "Jiho Jang", email = "jihobada@gmail.com"}
+]
+keywords = ["qnx", "qnx-8.0", "rtos", "microkernel", "static-analysis", "secpol", "ipc", "sarif"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: System :: Operating System Kernels",
+]
+
+[project.scripts]
+qnx8-guard = "neutrinoguard.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["neutrinoguard*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

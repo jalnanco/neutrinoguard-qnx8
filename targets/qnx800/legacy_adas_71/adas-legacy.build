@@ -1,0 +1,15 @@
+# Legacy QNX SDP 7.1 IFS Buildfile
+[virtual=armle-v7,binary +compress] .bootstrap = {
+    startup-qemu-virt
+    procnto-smp-instr
+}
+
+[+script] .script = {
+    # Legacy io-pkt networking removed in QNX 8.0
+    io-pkt-v6-hc -d eqos
+    # Deprecated QNX 7.1 io-sock options replaced by sysctl in QNX 8.0
+    io-sock -o timer_pulse_prio=21,netisr_threads=4,npnp_pci -m phy
+    /proc/boot/actuator_ctrl &
+    /proc/boot/safety_monitor &
+    /proc/boot/diag_logger &
+}

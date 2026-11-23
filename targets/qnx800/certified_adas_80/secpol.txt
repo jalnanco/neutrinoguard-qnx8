@@ -1,0 +1,27 @@
+# QNX OS 8.0 Mandatory Access Control Policy (Compile: secpolcompile -o secpol.bin secpol.txt)
+type sys_boot_t;
+type io_sock_t;
+type actuator_ctrl_t;
+type safety_monitor_t;
+type diag_logger_t;
+
+allow sys_boot_t io_sock_t:process transition;
+allow_attach io_sock_t /dev/socket;
+allow_attach io_sock_t /dev/io-sock;
+ability io_sock_t nonroot:allow { io interrupt pathspace prot_exec };
+
+allow sys_boot_t actuator_ctrl_t:process transition;
+allow_attach actuator_ctrl_t /dev/name/local/actuator_ctrl;
+ability actuator_ctrl_t nonroot:allow { channel_connect interrupt io mem_lock pathspace priority };
+
+allow sys_boot_t safety_monitor_t:process transition;
+allow_attach safety_monitor_t /dev/adas_safety;
+allow_attach safety_monitor_t /dev/name/local/safety_monitor;
+ability safety_monitor_t nonroot:allow { channel_connect mem_lock pathspace priority };
+
+allow sys_boot_t diag_logger_t:process transition;
+allow_attach diag_logger_t /dev/name/local/diag_logger;
+ability diag_logger_t nonroot:allow { channel_connect mem_lock pathspace };
+
+allow actuator_ctrl_t safety_monitor_t:channel connect;
+allow safety_monitor_t diag_logger_t:channel connect;
