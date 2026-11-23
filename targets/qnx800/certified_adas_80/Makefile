@@ -22,9 +22,9 @@ qnx8:
 
 host-check:
 	@mkdir -p build/host
-	$(CC) -std=c11 -Wall -Wextra -Werror -O2 actuator_ctrl.c -o build/host/actuator_ctrl
-	$(CC) -std=c11 -Wall -Wextra -Werror -O2 safety_monitor.c -o build/host/safety_monitor
-	$(CC) -std=c11 -Wall -Wextra -Werror -O2 diag_logger.c -o build/host/diag_logger
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -O2 -pthread actuator_ctrl.c -o build/host/actuator_ctrl
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -O2 -pthread safety_monitor.c -o build/host/safety_monitor
+	$(CC) -std=c11 -D_POSIX_C_SOURCE=200809L -Wall -Wextra -Werror -O2 -pthread diag_logger.c -o build/host/diag_logger
 
 clean:
 	rm -rf build

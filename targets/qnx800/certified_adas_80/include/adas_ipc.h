@@ -6,8 +6,16 @@
 #ifndef ADAS_IPC_H
 #define ADAS_IPC_H
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 700
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sched.h>
