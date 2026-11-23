@@ -160,8 +160,9 @@
     const cycles = g.deadlock_cycles || [];
     const prioHazards = g.priority_hazards || [];
 
+    const cycleWord = cycles.length === 1 ? "Cycle" : "Cycles";
     document.getElementById("ipc-metrics-tag").textContent =
-      `${nodes.length} Processes · ${edges.length} IPC Channels · ${cycles.length} Cycles`;
+      `${nodes.length} Processes · ${edges.length} IPC Channels · ${cycles.length} ${cycleWord}`;
 
     const banner = document.getElementById("ipc-banner");
     if (cycles.length > 0) {
@@ -181,21 +182,22 @@
 
     const svg = document.getElementById("ipc-svg");
     if (!nodes.length) {
-      svg.innerHTML = `<text x="440" y="115" text-anchor="middle" fill="#94a3b8" font-size="13">No QNX microkernel IPC endpoints detected in workspace.</text>`;
+      svg.innerHTML = `<text x="460" y="115" text-anchor="middle" fill="#94a3b8" font-size="13">No QNX microkernel IPC endpoints detected in workspace.</text>`;
       return;
     }
 
-    // Order nodes nicely (highest priority left-to-right)
+    // Order nodes nicely (highest priority left-to-right) with generous 142px inter-node gap
     const ordered = [...nodes].sort((a, b) => (b.priority || 20) - (a.priority || 20));
     const count = ordered.length;
-    const boxW = 216;
-    const boxH = 86;
-    const yTop = 52;
+    const boxW = 198;
+    const boxH = 88;
+    const yTop = 58;
     const positions = {};
     ordered.forEach((n, idx) => {
-      const span = 880 - 100;
+      const leftPad = count === 2 ? 130 : 28;
+      const span = 920 - leftPad * 2;
       const step = count === 1 ? 0 : (span - boxW) / (count - 1);
-      const x = count === 1 ? (880 - boxW) / 2 : 50 + idx * step;
+      const x = count === 1 ? (920 - boxW) / 2 : leftPad + idx * step;
       positions[n.node_id] = { x, y: yTop, cx: x + boxW / 2, cy: yTop + boxH / 2, idx };
     });
 
@@ -219,6 +221,7 @@
     `;
 
     let edgeSvg = "";
+    let badgeSvg = "";
     edges.forEach((e) => {
       const p1 = positions[e.source];
       const p2 = positions[e.target];
@@ -228,17 +231,18 @@
       const stroke = isCycle ? "#f43f5e" : isPulse ? "#10b981" : "#06b6d4";
       const marker = isCycle ? "url(#arr-red)" : isPulse ? "url(#arr-green)" : "url(#arr-cyan)";
       const dash = isPulse ? 'stroke-dasharray="6,4"' : "";
-      const label = isPulse ? "MsgSendPulse (async)" : isCycle ? "MsgSend (BLOCKS)" : `${e.kind} (sync)`;
+      const label = isPulse ? "MsgSendPulse" : isCycle ? "MsgSend (BLOCKS)" : `${e.kind} (sync)`;
 
       if (p1.idx < p2.idx) {
         const x1 = p1.x + boxW;
         const x2 = p2.x - 4;
         const y = p1.cy;
         const midX = (x1 + x2) / 2;
-        edgeSvg += `
-          <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${stroke}" stroke-width="2.4" ${dash} marker-end="${marker}" />
-          <rect x="${midX - 66}" y="${y - 26}" width="132" height="18" rx="4" fill="#0b1322" stroke="${stroke}" stroke-width="1"/>
-          <text x="${midX}" y="${y - 13}" text-anchor="middle" fill="#e2e8f0" font-family="monospace" font-size="10">${escHtml(label)}</text>
+        edgeSvg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${stroke}" stroke-width="2.4" ${dash} marker-end="${marker}" />`;
+        badgeSvg += `
+          <line x1="${midX}" y1="34" x2="${midX}" y2="${y - 3}" stroke="${stroke}" stroke-width="1" stroke-dasharray="2,2" />
+          <rect x="${midX - 62}" y="14" width="124" height="20" rx="5" fill="#0b1322" stroke="${stroke}" stroke-width="1.2"/>
+          <text x="${midX}" y="28" text-anchor="middle" fill="#f1f5f9" font-family="monospace" font-weight="700" font-size="10">${escHtml(label)}</text>
         `;
       } else {
         // Curved back-edge underneath all process boxes
@@ -246,12 +250,12 @@
         const y1 = p1.y + boxH;
         const x2 = p2.cx;
         const y2 = p2.y + boxH + 4;
-        const curveY = 204;
+        const curveY = 212;
         const midX = (x1 + x2) / 2;
-        edgeSvg += `
-          <path d="M ${x1} ${y1} C ${x1} ${curveY}, ${x2} ${curveY}, ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="2.5" ${dash} marker-end="${marker}" />
-          <rect x="${midX - 96}" y="182" width="192" height="20" rx="4" fill="#180d18" stroke="${stroke}" stroke-width="1.2"/>
-          <text x="${midX}" y="196" text-anchor="middle" fill="${isCycle ? "#fda4af" : "#6ee7b7"}" font-family="monospace" font-weight="700" font-size="10.5">
+        edgeSvg += `<path d="M ${x1} ${y1} C ${x1} ${curveY}, ${x2} ${curveY}, ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="2.5" ${dash} marker-end="${marker}" />`;
+        badgeSvg += `
+          <rect x="${midX - 98}" y="192" width="196" height="21" rx="5" fill="#180d18" stroke="${stroke}" stroke-width="1.2"/>
+          <text x="${midX}" y="206" text-anchor="middle" fill="${isCycle ? "#fda4af" : "#6ee7b7"}" font-family="monospace" font-weight="700" font-size="10.5">
             ${isCycle ? "BACK-EDGE: MsgSend Cycle!" : "Async Pulse Feedback"}
           </text>
         `;
@@ -263,7 +267,7 @@
       const pos = positions[n.node_id];
       const badNode = n.fixed_priority || !n.runs_as_nonroot;
       const borderCol = badNode ? (n.fixed_priority ? "#f59e0b" : "#3b82f6") : "#10b981";
-      const prioTxt = `Prio ${n.priority || 20}`;
+      const prioTxt = `P${n.priority || 20}`;
       const chanFlag = n.fixed_priority
         ? "FIXED_PRIO (No Inherit!)"
         : "PRIO_INHERIT + UNBLOCK";
@@ -276,17 +280,17 @@
       nodeSvg += `
         <g transform="translate(${pos.x}, ${pos.y})">
           <rect width="${boxW}" height="${boxH}" rx="9" fill="#10192c" stroke="${borderCol}" stroke-width="2" />
-          <rect x="10" y="9" width="60" height="18" rx="4" fill="#1e293b" />
-          <text x="40" y="22" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-weight="700" font-size="10.5">${escHtml(prioTxt)}</text>
-          <text x="78" y="22" fill="#f8fafc" font-family="monospace" font-weight="700" font-size="12.5">${escHtml(n.label)}</text>
-          <text x="12" y="45" fill="${n.fixed_priority ? "#fcd34d" : "#6ee7b7"}" font-family="monospace" font-size="10.5">${escHtml(chanFlag)}</text>
-          <text x="12" y="63" fill="${n.runs_as_nonroot || n.secpol_type ? "#94a3b8" : "#fda4af"}" font-family="monospace" font-size="10">${escHtml(secTxt)}</text>
-          <text x="12" y="78" fill="#64748b" font-family="monospace" font-size="9.5">${escHtml(n.attach_path || n.file)}</text>
+          <rect x="10" y="9" width="40" height="18" rx="4" fill="#1e293b" />
+          <text x="30" y="22" text-anchor="middle" fill="#38bdf8" font-family="monospace" font-weight="700" font-size="10.5">${escHtml(prioTxt)}</text>
+          <text x="58" y="22" fill="#f8fafc" font-family="monospace" font-weight="700" font-size="12">${escHtml(n.label)}</text>
+          <text x="12" y="46" fill="${n.fixed_priority ? "#fcd34d" : "#6ee7b7"}" font-family="monospace" font-size="10">${escHtml(chanFlag)}</text>
+          <text x="12" y="63" fill="${n.runs_as_nonroot || n.secpol_type ? "#94a3b8" : "#fda4af"}" font-family="monospace" font-size="9.8">${escHtml(secTxt)}</text>
+          <text x="12" y="79" fill="#64748b" font-family="monospace" font-size="9.5">${escHtml(n.attach_path || n.file)}</text>
         </g>
       `;
     });
 
-    svg.innerHTML = defs + edgeSvg + nodeSvg;
+    svg.innerHTML = defs + edgeSvg + nodeSvg + badgeSvg;
   }
 
   function renderSourceInspector() {
@@ -480,18 +484,16 @@
 
     const qemuBin = state.arch === "aarch64le" ? "qemu-system-aarch64 -M virt -cpu cortex-a72 -m 1G" : "qemu-system-x86_64 -m 1G -cpu max";
     document.getElementById("artifact-commands").textContent = [
-      "# 1. Load QNX SDP 8.0 (QNX Everywhere) Host Environment",
+      "# 1. Activate QNX SDP 8.0 & Run Host Readiness Gate",
       "source ~/qnx800/qnxsdp-env.sh",
-      "",
-      "# 2. Audit & Synthesize QNX 8.0 Security/IFS Artifacts on Host",
       `qnx8-guard scan . --arch ${state.arch} --fail-under 95`,
       `qnx8-guard synthesize . --out-dir ./qnx8_out --arch ${state.arch}`,
       "",
-      "# 3. Cross-Compile Binaries, Compile secpol.bin & Build QEMU Image",
+      "# 2. Compile Binaries, secpol.bin & Boot QEMU IFS Image",
       `make -C targets/qnx800/certified_adas_80 TARGET_ARCH=${state.arch}`,
       "secpolcompile -o secpol.bin ./qnx8_out/secpol.txt",
-      `mkifs ./qnx8_out/qnx800-qemu-${state.arch}.build ifs-qnx800-${state.arch}.bin`,
-      `${qemuBin} -nographic -kernel ifs-qnx800-${state.arch}.bin`,
+      `mkifs ./qnx8_out/qnx800-qemu-${state.arch}.build ifs-qnx800.bin`,
+      `${qemuBin} -nographic -kernel ifs-qnx800.bin`,
     ].join("\n");
   }
 
